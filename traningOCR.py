@@ -6,6 +6,9 @@ from PIL import Image
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PaymentSlipOCR:
     def __init__(self):
@@ -46,17 +49,20 @@ class PaymentSlipOCR:
         try:
             # Preprocess image
             processed_img = self.preprocess_image(image_path)
-            
+
             # Configure Tesseract
             custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,:-/$#@() '
-            
+
             # Extract text
             text = pytesseract.image_to_string(processed_img, config=custom_config)
-            
+
             return text.strip()
-            
-        except Exception as e:
-            print(f"Error in Tesseract OCR: {e}")
+
+        except pytesseract.pytesseract.TesseractError as e:
+            logger.error("Tesseract OCR error: %s", e)
+            return ""
+        except cv2.error as e:
+            logger.error("OpenCV error during Tesseract OCR: %s", e)
             return ""
     
     def extract_text_easyocr(self, image_path: str) -> str:
@@ -79,10 +85,10 @@ class PaymentSlipOCR:
             return text.strip()
             
         except ImportError:
-            print("EasyOCR not installed. Install with: pip install easyocr")
+            logger.error("EasyOCR not installed. Install with: pip install easyocr")
             return ""
-        except Exception as e:
-            print(f"Error in EasyOCR: {e}")
+        except (RuntimeError, OSError) as e:
+            logger.error("Error in EasyOCR: %s", e)
             return ""
     
     def parse_payment_data(self, text: str) -> Dict:
@@ -190,7 +196,7 @@ class PaymentSlipOCR:
         """
         Complete processing of payment slip
         """
-        print(f"Processing payment slip: {image_path}")
+        logger.info("Processing payment slip: %s", image_path)
         
         # Extract text using chosen OCR method
         if use_easyocr:
@@ -201,7 +207,7 @@ class PaymentSlipOCR:
         if not raw_text:
             return {"error": "Could not extract text from image"}
         
-        print(f"Extracted text:\n{raw_text}\n")
+        logger.debug("Extracted text:\n%s\n", raw_text)
         
         # Parse payment data
         parsed_data = self.parse_payment_data(raw_text)
@@ -246,9 +252,9 @@ class PaymentSlipOCR:
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(results, f, indent=2, ensure_ascii=False)
-            print(f"Results saved to: {output_file}")
-        except Exception as e:
-            print(f"Error saving results: {e}")
+            logger.info("Results saved to: %s", output_file)
+        except OSError as e:
+            logger.error("Error saving results: %s", e)
     
     def format_for_payment_processing(self, data: Dict) -> Dict:
         """
@@ -269,6 +275,8 @@ class PaymentSlipOCR:
 
 # Example usage
 def main():
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
+
     # Initialize OCR processor
     ocr_processor = PaymentSlipOCR()
     
@@ -281,38 +289,38 @@ def main():
     
     for image_path in image_paths:
         try:
-            print(f"\n{'='*50}")
-            print(f"Processing: {image_path}")
-            print(f"{'='*50}")
+            logger.info("\n%s", '=' * 50)
+            logger.info("Processing: %s", image_path)
+            logger.info("%s", '=' * 50)
             
             # Process the slip
             results = ocr_processor.process_slip(image_path)
             
             if "error" in results:
-                print(f"Error: {results['error']}")
+                logger.error("Error: %s", results['error'])
                 continue
             
             # Display results
-            print(f"Confidence Score: {results['confidence_score']:.1f}%")
-            print(f"\nParsed Data:")
+            logger.info("Confidence Score: %.1f%%", results['confidence_score'])
+            logger.info("Parsed Data:")
             for key, value in results['parsed_data'].items():
                 if value:
-                    print(f"  {key.title()}: {value}")
+                    logger.info("  %s: %s", key.title(), value)
             
             # Format for payment processing
             payment_ready = ocr_processor.format_for_payment_processing(results)
-            print(f"\nPayment Processing Format:")
+            logger.info("Payment Processing Format:")
             for key, value in payment_ready.items():
-                print(f"  {key}: {value}")
+                logger.info("  %s: %s", key, value)
             
             # Save results
             output_filename = f"extracted_data_{image_path.split('.')[0]}.json"
             ocr_processor.save_results(results, output_filename)
             
         except FileNotFoundError:
-            print(f"Image file not found: {image_path}")
-        except Exception as e:
-            print(f"Error processing {image_path}: {e}")
+            logger.error("Image file not found: %s", image_path)
+        except (ValueError, pytesseract.pytesseract.TesseractError, OSError) as e:
+            logger.error("Error processing %s: %s", image_path, e)
 
 if __name__ == "__main__":
     main()
