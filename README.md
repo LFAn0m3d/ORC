@@ -57,8 +57,17 @@ The model weights will be stored in `models/ocr_model.pt`.
 ### Evaluation
 
 Utility functions in `ocr.evaluate` provide character error rate (CER), word
-error rate (WER) and a placeholder for mAP. Evaluation should be performed on a
-held‑out dataset to validate real‑world performance.
+error rate (WER) and a simple mAP implementation via `compute_map`. Evaluation
+should be performed on a held‑out dataset to validate real‑world performance.
+Example usage:
+
+```python
+from ocr.evaluate import char_error_rate, word_error_rate, compute_map
+
+cer = char_error_rate(pred_text, gt_text)
+wer = word_error_rate(pred_text, gt_text)
+map_score = compute_map(detections, ground_truth)
+```
 
 ### API
 
