@@ -41,6 +41,11 @@ Annotations are expected in a JSON file with the following structure:
 ]
 ```
 
+Each object in `boxes` must include the bounding box coordinates under the `bbox`
+key and the ground truth text string under `text`. The first character of this
+string is used for the recognition loss during training. A `language` field is
+optional.
+
 Images should cover a wide variety of scenes such as documents, signs and
 packaging captured in different lighting conditions, angles and resolutions.
 
@@ -53,6 +58,10 @@ python -m ocr.train --data-root /path/to/images --annotations annotations.json
 ```
 
 The model weights will be stored in `models/ocr_model.pt`.
+
+During training, bounding box regression and classification losses from the
+detector are combined with a character classification loss for the recognition
+branch. All losses are accumulated and backpropagated each iteration.
 
 ### Evaluation
 

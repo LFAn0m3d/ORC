@@ -5,7 +5,7 @@ import torch
 import torchvision.transforms as T
 
 from .dataset import OCRDataset
-from .model import OCRModel
+from .model import OCRModel, recognition_targets_from_annotations
 
 
 def collate(batch):
@@ -20,15 +20,37 @@ def train(data_root: str, annotation_file: str, epochs: int = 10, lr: float = 1e
     loader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=collate)
 
     model = OCRModel()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     model.train()
     for epoch in range(epochs):
         for images, targets in loader:
+            images = [img.to(device) for img in images]
             optimizer.zero_grad()
-            outputs = model(images)
-            # compute detection and recognition losses (placeholder)
-            loss = sum(o.get('loss', 0) for o in outputs if isinstance(o, dict))
+
+            # prepare detection targets
+            det_targets = []
+            for t in targets:
+                boxes = torch.tensor([b["bbox"] for b in t], dtype=torch.float32, device=device)
+                labels = torch.ones((len(boxes),), dtype=torch.int64, device=device)
+                det_targets.append({"boxes": boxes, "labels": labels})
+
+            det_loss_dict = model.detector(images, det_targets)
+            det_loss = sum(det_loss_dict.values())
+
+            # recognition targets and loss
+            crops, rec_labels = recognition_targets_from_annotations(images, targets)
+            if crops is not None:
+                crops = crops.to(device)
+                rec_labels = rec_labels.to(device)
+                rec_logits = model.recognizer(crops)
+                rec_loss = torch.nn.functional.cross_entropy(rec_logits, rec_labels)
+            else:
+                rec_loss = torch.tensor(0.0, device=device)
+
+            loss = det_loss + rec_loss
             loss.backward()
             optimizer.step()
         print(f"Epoch {epoch+1} completed")
