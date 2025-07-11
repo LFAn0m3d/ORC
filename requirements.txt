@@ -3,3 +3,8 @@ pytesseract
 Pillow
 numpy
 easyocr
+torch
+torchvision
+fastapi
+uvicorn
+pydantic
