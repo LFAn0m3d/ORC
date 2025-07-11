@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import pytesseract
 import re
@@ -40,10 +41,22 @@ def parse_fields(text):
         "time": time_match.group() if time_match else None
     }
 
-# Run the full OCR pipeline on the uploaded slip
-image_path = "/mnt/data/3b8bd289-74ec-4fa9-b3af-6eac88acbbe3.png"
-processed_image = preprocess_image(image_path)
-ocr_text = extract_text(processed_image)
-fields = parse_fields(ocr_text)
+def main() -> None:
+    """Entry point for running the OCR pipeline from the command line."""
+    parser = argparse.ArgumentParser(
+        description="Run OCR on a single image and display parsed fields"
+    )
+    parser.add_argument(
+        "image_path",
+        help="Path to the image file to process"
+    )
+    args = parser.parse_args()
 
-fields
+    processed_image = preprocess_image(args.image_path)
+    ocr_text = extract_text(processed_image)
+    fields = parse_fields(ocr_text)
+    print(fields)
+
+
+if __name__ == "__main__":
+    main()
