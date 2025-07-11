@@ -6,6 +6,7 @@ from PIL import Image
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
+import argparse
 
 class PaymentSlipOCR:
     def __init__(self):
@@ -269,24 +270,31 @@ class PaymentSlipOCR:
 
 # Example usage
 def main():
+    """Command line interface for processing payment slips."""
+    parser = argparse.ArgumentParser(description="Process payment slip images")
+    parser.add_argument(
+        "image_paths",
+        nargs="+",
+        help="Paths to payment slip images to process"
+    )
+    parser.add_argument(
+        "--easyocr",
+        action="store_true",
+        help="Use EasyOCR instead of Tesseract"
+    )
+    args = parser.parse_args()
+
     # Initialize OCR processor
     ocr_processor = PaymentSlipOCR()
-    
-    # Example usage with different image paths
-    image_paths = [
-        "payment_slip.jpg",
-        "receipt.png",
-        "invoice.pdf"  # Note: PDF would need conversion to image first
-    ]
-    
-    for image_path in image_paths:
+
+    for image_path in args.image_paths:
         try:
             print(f"\n{'='*50}")
             print(f"Processing: {image_path}")
             print(f"{'='*50}")
-            
+
             # Process the slip
-            results = ocr_processor.process_slip(image_path)
+            results = ocr_processor.process_slip(image_path, use_easyocr=args.easyocr)
             
             if "error" in results:
                 print(f"Error: {results['error']}")
